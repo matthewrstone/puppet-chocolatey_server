@@ -6,7 +6,9 @@
 class chocolatey_server::params {
   case $::osfamily {
     'windows': {
-      $service_port = '80'
+      $port = hiera('chocolatey_server::port','80')
+      $location = hiera('chocolatey_server::location','c:\tools\chocolatey')
+      $app_poole = hiera('chocolatey_server::app_pool', 'chocolatey.server')
     }
     default: {
       fail("${::operatingsystem} not supported")
