@@ -5,6 +5,12 @@ class chocolatey_server (
   $app_pool = $chocolatey_server::params::app_pool,
 ) {
 
+  # Choco Install if its not there
+  exec { 'Install Choco' :
+    command => 'iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1'))',
+    onlyif  => 'If (!(Test-Path "c:\programdata\chocolatey\bin")) { exit 1 } else { exit 0 }',
+    before  => Package['chocolatey.server'],
+  }
   # package install
   package {'chocolatey.server':
     ensure   => installed,
@@ -61,4 +67,9 @@ class chocolatey_server (
     ],
   }
   # technically you may only need IIS_IUSRS but I have not tested this yet.
+}
+
+reboot { 'Post Choco Install' :
+  when => pending,
+  subscribe => Package['chocolatey.server'],
 }
