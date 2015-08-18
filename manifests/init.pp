@@ -1,47 +1,39 @@
 # == Class: chocolatey_server
 class chocolatey_server (
-  $port = $chocolatey_server::params::_port,
-  $location = $chocolatey_server::params::location,
-  $app_pool = $chocolatey_server::params::app_pool,
-) {
+  $port     = $::chocolatey_server::params::port,
+  $location = $::chocolatey_server::params::location,
+  $app_pool = $::chocolatey_server::params::app_pool,
+) inherits chocolatey_server::params {
+  require chocolatey_server::features
+  require chocolatey_server::choco
 
-  # Choco Install if its not there
-  exec { 'Install Choco' :
-    command => 'iex ((new-object net.webclient).DownloadString('https://chocolatey.org/install.ps1'))',
-    onlyif  => 'If (!(Test-Path "c:\programdata\chocolatey\bin")) { exit 1 } else { exit 0 }',
-    before  => Package['chocolatey.server'],
-  }
-  # package install
+  # Install the chocolatey server package
   package {'chocolatey.server':
     ensure   => installed,
     provider => chocolatey,
-  } ->
+  } 
 
-  # add windows features
-  windowsfeature { 'Web-WebServer':
-  installmanagementtools => true,
-  } ->
-  windowsfeature { 'Web-Asp-Net45':
-  } ->
-
-  # remove default web site
-  iis::manage_site {'Default Web Site':
-    ensure    => absent,
-    site_path => 'any',
-    app_pool  => 'DefaultAppPool'
-  } ->
-
-  # application in iis
+  # Create the IIS App Pool
   iis::manage_app_pool { $app_pool :
     enable_32_bit           => true,
     managed_runtime_version => 'v4.0',
-  } ->
+  }
+
   iis::manage_site {'chocolatey.server':
     site_path  => $location,
     port       => $port,
     ip_address => '*',
     app_pool   => $app_pool,
-  } ->
+    require    => Iis::Manage_app_pool[$app_pool],
+  } 
+
+ # remove default web site
+  iis::manage_site {'Default Web Site':
+    ensure    => absent,
+    site_path => 'c:\inetpub\wwwroot',
+    app_pool  => 'DefaultAppPool',
+    require   => Iis::Manage_site['chocolatey.server'],
+  }
 
   # lock down web directory
   acl { $location :
@@ -57,7 +49,8 @@ class chocolatey_server (
       { identity => "IIS APPPOOL\\${app_pool}",
         rights   => ['read'] }
     ],
-  } ->
+    require   => Iis::Manage_site['chocolatey.server'],
+  }
   acl { "${location}/App_Data":
     permissions => [
       { identity => "IIS APPPOOL\\${app_pool}",
@@ -65,11 +58,17 @@ class chocolatey_server (
       { identity => 'IIS_IUSRS',
         rights   => ['modify'] }
     ],
+    require   => Iis::Manage_app_pool[$app_pool],
   }
   # technically you may only need IIS_IUSRS but I have not tested this yet.
-}
 
-reboot { 'Post Choco Install' :
-  when => pending,
-  subscribe => Package['chocolatey.server'],
+  reboot { 'Post Choco Install' :
+    when => pending,
+    subscribe => Package['chocolatey.server'],
+  }
+
+  iis::manage_site_state { 'chocolatey.server' :
+    site_name => 'chocolatey.server',
+    require => Iis::Manage_site['chocolatey.server'], 
+  }
 }
