@@ -1,11 +1,11 @@
-# == Class: chocolatey_server
-class chocolatey_server (
-  $port     = $::chocolatey_server::params::port,
-  $location = $::chocolatey_server::params::location,
-  $app_pool = $::chocolatey_server::params::app_pool,
-) inherits chocolatey_server::params {
-  require chocolatey_server::features
-  require chocolatey_server::choco
+# Install Chocolatey Server
+class chocolatey::server (
+  $port     = $::chocolatey::server::params::port,
+  $location = $::chocolatey::server::params::location,
+  $app_pool = $::chocolatey::server::params::app_pool,
+) inherits chocolatey::server::params {
+  require chocolatey::client
+  require chocolatey::server::features
 
   # Install the chocolatey server package
   package {'chocolatey.server':

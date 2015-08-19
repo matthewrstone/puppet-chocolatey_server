@@ -1,5 +1,5 @@
 # Install Windows Features
-class chocolatey_server::features {
+class chocolatey::server::features {
   windowsfeature { 'Web-WebServer':
     ensure => present,
     installmanagementtools => true,
