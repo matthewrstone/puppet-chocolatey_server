@@ -1,56 +1,61 @@
 # chocolatey sources
-class chocolatey::source(
+define chocolatey::source(
   $source_url,
-  $source_name,
+  $source_name = $title,
   $source_user = 'none',
   $source_pass = 'none',
   $ensure = 'present',
 ){
-  $ps_source_check = "If ((choco source list | sls ${source_name}) -match '${source_name}')"
+
+  Exec { provider => powershell }
+  $choco = 'C:\ProgramData\chocolatey\bin\choco.exe'
+#  $ps_source_check = "If ((${choco} source list | sls ${source_name}) -match '${source_name}')"
   case $ensure {
-    'present' : { add { $source_name : source_url => $source_url, source_name => $source_name } }
-    'absent'  : { remove { $source_name: source_url => $source_url, source_name => $source_name } }
+    'present' : { 
+      $command = $source_user ? {
+        default => "${choco} source add -n=${source_name} -s \"${source_url}\" -u=${source_user} -p=${source_pass}",
+        'none'  => "${choco} source add -n=${source_name} -s \"${source_url}\"",
+      }
+      exec { "add_${source_name}" :
+        command => $command,
+        onlyif  => "If ((${choco} source list | sls ${source_name}) -match '${source_name}') { exit 1 }",
+      }
+    }
+    'absent'  : { 
+      exec { "remove_${source_name}" :
+        command => "${choco} source remove -n=${source_name}",
+        onlyif  => "If ((${choco} source list | sls ${source_name}) -match '${source_name}') { exit 0 }",
+      }
+    } 
     'enabled' : {
-      add { $source_name : source_url => $source_url, source_name => $source_name }
-      enable { $source_name: source_url => $source_url, source_name => $source_name }
+      $command = $source_user ? {
+        default => "${choco} source add -n=${source_name} -s \"${source_url}\" -u=${source_user} -p=${source_pass}",
+        'none'  => "${choco} source add -n=${source_name} -s \"${source_url}\"",
+      }
+      exec { "add_${source_name}" :
+        command => $command,
+        onlyif  => "If ((${choco} source list | sls ${source_name}) -match '${source_name}') { exit 1 }",
+      }
+      exec { "enable_${source_name}" :
+        command => "${choco} source enable -n=${source_name}",
+        onlyif  => "If (((${choco} source list) | sls '${source_url}') -match '[Disabled]'){exit 0} else {exit 1}",
+      }
     }
     'disabled' : {
-      add { $source_name : source_url => $source_url, source_name => $source_name }
-      disable { $source_name: source_url => $source_url, source_name => $source_name }
+      $command = $source_user ? {
+        default => "${choco} source add -n=${source_name} -s \"${source_url}\" -u=${source_user} -p=${source_pass}",
+        'none'  => "${choco} source add -n=${source_name} -s \"${source_url}\"",
+      }
+      exec { "add_${source_name}" :
+        command => $command,
+        onlyif  => "If ((${choco} source list | sls ${source_name}) -match '${source_name}') { exit 1 }",
+      }
+      exec { "disable_${source_name}" :
+        command => "${choco} source disable -n=${source_name}",
+        onlyif  => "If (((${choco} source list) | sls '${source_url}') -match '[Disabled]'){exit 1} else {exit 0}",
+      }
     }
     default : { fail('You must set ensure status...') }
   }
-  Exec { provider => powershell }
-  define add($source_name,$source_url) {
-    $command = $source_user ? {
-      default => "choco source add -n=${source_name} -s \"${source_url}\" -u=${source_user} -p=${source_pass}",
-      'none'  => "choco source add -n=${source_name} -s \"${source_url}\"",
-    }
-    exec { "add_${source_name}" :
-      command => $command,
-      onlyif  => "If ((choco source list | sls ${source_name}) -match '${source_name}') { exit 1 }",
-    }
-  }
 
-  define remove($source_name,$source_url) {
-    exec { "remove_${source_name}" :
-      command => "choco source remove -n=${source_name}",
-      onlyif  => "If ((choco source list | sls ${source_name}) -match '${source_name}') { exit 0 }",
-    }
-  }
-  
-  define enable($source_name,$source_url) {
-    exec { "enable_${source_name}" :
-      command => "choco source enable -n=${source_name}",
-      onlyif  => "If (((choco source list) | sls '${source_url}') -match '[Disabled]'){exit 0} else {exit 1}",
-    }
-
-  }
-
-  define disable($source_name,$source_url) {
-    exec { "disable_${source_name}" :
-      command => "choco source disable -n=${source_name}",
-      onlyif  => "If (((choco source list) | sls '${source_url}') -match '[Disabled]'){exit 1} else {exit 0}",
-    }
-  }
 }
