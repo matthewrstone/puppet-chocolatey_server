@@ -62,10 +62,10 @@ class chocolatey::server (
   }
   # technically you may only need IIS_IUSRS but I have not tested this yet.
 
-  reboot { 'Post Choco Install' :
-    when => pending,
-    subscribe => Package['chocolatey.server'],
-  }
+#  reboot { 'Post Choco Install' :
+#    when => pending,
+#    subscribe => Package['chocolatey.server'],
+#  }
 
   iis::manage_site_state { 'chocolatey.server' :
     site_name => 'chocolatey.server',
