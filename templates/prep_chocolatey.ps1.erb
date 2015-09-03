@@ -1,0 +1,22 @@
+#requires -Version 4.0
+
+$uri = "<%= @source_uri %>"
+$stgDir = "<%= @temp_folder %>\choco"
+$zipSource = "$stgDir\chocolatey.zip"
+
+# Create a temporary directory
+If (!(Test-Path $stgDir)) { New-Item -ItemType Directory -Path $stgDir -Force | Out-Null }
+
+# Download the package
+Invoke-WebRequest -Uri "${uri}/chocolatey.zip" -OutFile $zipSource
+
+If(!(Test-Path $zipSource)) { "Zip did not download successfully!" | Write-Host; exit 1 }
+
+$zipObj = New-Object -ComObject Shell.Application
+$zipFiles = $zipObj.NameSpace($zipSource).Items()
+
+$zipObj.NameSpace($stgDir).CopyHere($zipFiles)
+
+If (!(Test-Path $stgDir\tools\chocolateyInstall.ps1)) {
+  "Something went wrong with unzip!" | Write-Host; exit 1
+}
